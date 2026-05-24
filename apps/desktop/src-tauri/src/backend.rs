@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use std::time::Duration;
 
 use serde::Serialize;
-use tauri::{AppHandle, Manager};
+use tauri::AppHandle;
 
 pub struct BackendProcess(pub Mutex<BackendState>);
 

@@ -77,9 +77,10 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("error while building tauri application")
         .run(|app_handle, event| {
-            if let RunEvent::ExitRequested { .. } = event {
+            if matches!(event, RunEvent::ExitRequested { .. }) {
                 let state = app_handle.state::<BackendProcess>();
-                if let Ok(mut guard) = state.0.lock() {
+                let lock_result = state.0.lock();
+                if let Ok(mut guard) = lock_result {
                     backend::stop_locked(&mut guard);
                 }
             }

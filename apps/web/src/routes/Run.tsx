@@ -97,6 +97,17 @@ export function RunRoute({ runId, toolId, onBack }: RunRouteProps) {
                     )}
                   </div>
                 )}
+                {e.artifact.kind === "hint" && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-white">
+                      <span className="text-white/40">{e.artifact.field}:</span>{" "}
+                      {e.artifact.value}
+                    </span>
+                    <span className="text-[10px] uppercase tracking-wider text-white/30">
+                      {e.artifact.source}
+                    </span>
+                  </div>
+                )}
               </li>
             ))}
           </ul>

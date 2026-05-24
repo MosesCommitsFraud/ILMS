@@ -6,13 +6,15 @@
   "scripts": {
     "dev": "bun --watch src/bin.ts",
     "start": "bun run src/bin.ts",
-    "typecheck": "tsc -p tsconfig.json --noEmit"
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "prepare:playwright": "bunx playwright install chromium"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.0",
     "@ilms/contracts": "workspace:*",
     "@ilms/shared": "workspace:*",
     "elysia": "^1.4.28",
+    "playwright-core": "^1.49.0",
     "zod": "^4.0.0"
   },
   "devDependencies": {

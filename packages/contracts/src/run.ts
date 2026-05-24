@@ -19,10 +19,17 @@ export const EmailArtifactSchema = z.object({
   email: z.string(),
   source: z.string().optional(),
 });
+export const HintArtifactSchema = z.object({
+  kind: z.literal("hint"),
+  source: z.string(),
+  field: z.string(),
+  value: z.string(),
+});
 export const ArtifactSchema = z.discriminatedUnion("kind", [
   ProfileArtifactSchema,
   LinkArtifactSchema,
   EmailArtifactSchema,
+  HintArtifactSchema,
 ]);
 export type Artifact = z.infer<typeof ArtifactSchema>;
 

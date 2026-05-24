@@ -1,6 +1,8 @@
 import type { ToolDescriptor } from "@ilms/contracts/tool";
 
 import { crosslinkedDriver } from "./Drivers/crosslinked";
+import { facebookDirectoryDriver } from "./Drivers/facebookDirectory";
+import { facebookRecoverDriver } from "./Drivers/facebookRecover";
 import { informerDriver } from "./Drivers/informer";
 import { sherlockDriver } from "./Drivers/sherlock";
 import { soigDriver } from "./Drivers/soig";
@@ -13,6 +15,8 @@ const driverList: ToolDriver[] = [
   toutatisDriver,
   crosslinkedDriver,
   informerDriver,
+  facebookRecoverDriver,
+  facebookDirectoryDriver,
 ];
 
 const drivers: Record<string, ToolDriver> = Object.fromEntries(

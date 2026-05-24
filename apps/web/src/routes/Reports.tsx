@@ -96,9 +96,10 @@ export function ExportButtons({ caseId, slug }: { caseId: string; slug: string }
     }
   }
 
-  function onPdf() {
-    // Navigate to the HTTP route; browser handles download or shows the PDF.
-    window.open(reportUrl(caseId, "pdf"), "_blank");
+  function onPrint() {
+    // Browser-native print is more reliable than server-side chromium on
+    // every platform, and dodges the Bun + playwright + Windows hang.
+    window.open(reportUrl(caseId, "html"), "_blank");
   }
 
   return (
@@ -114,10 +115,11 @@ export function ExportButtons({ caseId, slug }: { caseId: string; slug: string }
       </button>
       <button
         type="button"
-        onClick={onPdf}
+        onClick={onPrint}
+        title="Opens the report in a new tab; press Ctrl/Cmd+P to print or save as PDF."
         className="rounded border border-white/10 px-3 py-1 text-xs text-white/70 hover:border-white/30 hover:text-white"
       >
-        PDF
+        Print
       </button>
     </div>
   );

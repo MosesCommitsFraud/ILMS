@@ -3,6 +3,7 @@ import { Elysia } from "elysia";
 import { BrowserMissingError } from "../tools/runtime/playwrightRunner";
 
 import { loadReportBundle } from "./bundle";
+import { renderHtmlDocument } from "./html";
 import { renderPdf } from "./pdf";
 import { renderMarkdown } from "./render";
 
@@ -14,6 +15,13 @@ export const reportRoutes = new Elysia({ name: "ilms/reports" })
         "Content-Type": "text/markdown; charset=utf-8",
         "Content-Disposition": `attachment; filename="${bundle.case.slug}.md"`,
       },
+    });
+  })
+  .get("/reports/:caseId/html", ({ params }) => {
+    const bundle = loadReportBundle(params.caseId);
+    const html = renderHtmlDocument(renderMarkdown(bundle), bundle.case.name);
+    return new Response(html, {
+      headers: { "Content-Type": "text/html; charset=utf-8" },
     });
   })
   .get("/reports/:caseId/pdf", async ({ params }) => {

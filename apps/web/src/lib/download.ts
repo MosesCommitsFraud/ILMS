@@ -7,7 +7,7 @@ export function downloadString(filename: string, content: string, mime: string):
   setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
 
-export function reportUrl(caseId: string, format: "markdown" | "pdf"): string {
+export function reportUrl(caseId: string, format: "markdown" | "pdf" | "html"): string {
   return `${resolveHttpUrl()}/reports/${encodeURIComponent(caseId)}/${format}`;
 }
 

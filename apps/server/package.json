@@ -7,7 +7,9 @@
     "dev": "bun --watch src/bin.ts",
     "start": "bun run src/bin.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "prepare:playwright": "bunx -p playwright@1.49.0 playwright install chromium"
+    "test": "bun test",
+    "prepare:playwright": "bunx -p playwright@1.49.0 playwright install chromium",
+    "prepare:tools": "uv tool install sherlock-project && uv tool install toutatis && uv tool install crosslinked"
   },
   "dependencies": {
     "@elysiajs/cors": "^1.4.0",

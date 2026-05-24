@@ -9,6 +9,8 @@ import type {
 
 import { getDb } from "../db";
 
+import { dedupKey } from "./dedupKey";
+
 interface RunRow {
   id: string;
   case_id: string | null;
@@ -94,21 +96,6 @@ export function getRun(runId: string): Run | null {
     )
     .get(runId) as RunRow | null;
   return row ? rowToRun(row) : null;
-}
-
-function dedupKey(artifact: Artifact): string | null {
-  switch (artifact.kind) {
-    case "profile":
-      return `profile:${artifact.url}`;
-    case "link":
-      return `link:${artifact.url}`;
-    case "email":
-      return `email:${artifact.email.toLowerCase()}`;
-    case "hint":
-      return `hint:${artifact.source}:${artifact.field}:${artifact.value}`;
-    default:
-      return null;
-  }
 }
 
 /** Insert artifact; returns true if inserted, false if deduped. */

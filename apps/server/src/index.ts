@@ -2,6 +2,7 @@ import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 
 import { getDb } from "./db";
+import { reportRoutes } from "./reports/routes";
 import { rpcRoutes } from "./rpc/server";
 
 // Open + migrate the database at module load so the first RPC call doesn't pay
@@ -30,6 +31,7 @@ export function createApp() {
       setTimeout(() => process.exit(0), 10);
       return { ok: true };
     })
+    .use(reportRoutes)
     .use(rpcRoutes);
 }
 

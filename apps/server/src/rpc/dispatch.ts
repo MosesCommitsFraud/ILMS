@@ -15,6 +15,8 @@ import {
 } from "../cases/store";
 import { startRun } from "../runs/manager";
 import { listArtifacts, listRuns } from "../runs/store";
+import { loadReportBundle } from "../reports/bundle";
+import { renderMarkdown } from "../reports/render";
 import { deleteSecret, listSecrets, setSecret } from "../secrets/store";
 import { createTarget, deleteTarget, listTargets } from "../targets/store";
 import { listTools } from "../tools/registry";
@@ -53,6 +55,9 @@ const handlers = {
     deleteSecret(key);
     return { ok: true };
   },
+  "report.markdown": ({ caseId }) => ({
+    content: renderMarkdown(loadReportBundle(caseId)),
+  }),
 } satisfies RpcHandlers;
 
 function executeParsedRpcHandler(method: RpcMethod, input: unknown) {

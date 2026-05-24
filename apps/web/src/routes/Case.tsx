@@ -10,6 +10,7 @@ import type {
 } from "@ilms/contracts";
 
 import { rpc } from "../rpc/client";
+import { ExportButtons } from "./Reports";
 
 interface CaseRouteProps {
   caseId: string;
@@ -106,6 +107,11 @@ export function CaseRoute({ caseId, onBack, onRunTool, onOpenRun }: CaseRoutePro
       <RunsSection runs={state.runs} onOpen={onOpenRun} />
 
       <ArtifactsSection artifacts={state.artifacts} />
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wider text-white/40">Export</h2>
+        <ExportButtons caseId={c.id} slug={c.slug} />
+      </section>
     </div>
   );
 }

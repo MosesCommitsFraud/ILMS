@@ -2,6 +2,7 @@ import { useState } from "react";
 
 import { CaseRoute } from "./routes/Case";
 import { CasesRoute } from "./routes/Cases";
+import { ReportsRoute } from "./routes/Reports";
 import { RunRoute } from "./routes/Run";
 import { SettingsRoute } from "./routes/Settings";
 import { ToolRoute } from "./routes/Tool";
@@ -13,20 +14,25 @@ export type View =
   | { kind: "tools" }
   | { kind: "tool"; toolId: string; caseId?: string | undefined }
   | { kind: "run"; runId: string; toolId: string; caseId?: string | undefined }
+  | { kind: "reports" }
   | { kind: "settings" };
 
 const NAV: Array<{ label: string; view: View; enabled?: boolean }> = [
   { label: "Cases", view: { kind: "cases" } },
   { label: "Tools", view: { kind: "tools" } },
   { label: "Agent", view: { kind: "cases" }, enabled: false },
-  { label: "Reports", view: { kind: "cases" }, enabled: false },
+  { label: "Reports", view: { kind: "reports" } },
   { label: "Settings", view: { kind: "settings" } },
 ];
 
 export function App() {
   const [view, setView] = useState<View>({ kind: "cases" });
 
-  const activeTop = view.kind === "case" ? "cases" : view.kind === "tool" || view.kind === "run" ? "tools" : view.kind;
+  const activeTop = view.kind === "case"
+    ? "cases"
+    : view.kind === "tool" || view.kind === "run"
+      ? view.caseId ? "cases" : "tools"
+      : view.kind;
 
   return (
     <div className="flex h-full">
@@ -74,6 +80,7 @@ export function App() {
           />
         )}
         {view.kind === "settings" && <SettingsRoute />}
+        {view.kind === "reports" && <ReportsRoute />}
         {view.kind === "run" && (
           <RunRoute
             runId={view.runId}

@@ -42,6 +42,10 @@ export const rpcMethods = {
   "secrets.list": { input: z.object({}), output: z.array(SecretEntrySchema) },
   "secrets.set": { input: SecretSetInputSchema, output: OkSchema },
   "secrets.delete": { input: z.object({ key: z.string() }), output: OkSchema },
+  "report.markdown": {
+    input: z.object({ caseId: z.string() }),
+    output: z.object({ content: z.string() }),
+  },
 } satisfies RpcMethodMap;
 
 export type RpcMethod = keyof typeof rpcMethods;

@@ -26,6 +26,7 @@ const descriptor: ToolDescriptor = {
       placeholder: "e.g. johndoe",
     },
   ],
+  requiredSecrets: [],
 };
 
 export const sherlockDriver: ToolDriver = {

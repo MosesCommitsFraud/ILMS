@@ -64,7 +64,7 @@ export function RunRoute({ runId, toolId, onBack }: RunRouteProps) {
           <ul className="divide-y divide-white/10">
             {artifacts.map((e) => (
               <li key={e.seq} className="py-2">
-                {e.artifact.kind === "profile" ? (
+                {e.artifact.kind === "profile" && (
                   <div className="flex items-center justify-between gap-4">
                     <span className="text-sm text-white">{e.artifact.site}</span>
                     <a
@@ -76,7 +76,8 @@ export function RunRoute({ runId, toolId, onBack }: RunRouteProps) {
                       {e.artifact.url}
                     </a>
                   </div>
-                ) : (
+                )}
+                {e.artifact.kind === "link" && (
                   <a
                     href={e.artifact.url}
                     target="_blank"
@@ -85,6 +86,16 @@ export function RunRoute({ runId, toolId, onBack }: RunRouteProps) {
                   >
                     {e.artifact.label ?? e.artifact.url}
                   </a>
+                )}
+                {e.artifact.kind === "email" && (
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="text-sm text-white">{e.artifact.email}</span>
+                    {e.artifact.source && (
+                      <span className="text-[10px] uppercase tracking-wider text-white/30">
+                        {e.artifact.source}
+                      </span>
+                    )}
+                  </div>
                 )}
               </li>
             ))}

@@ -9,6 +9,7 @@
     "./desktop": { "types": "./src/desktop.ts", "import": "./src/desktop.ts" },
     "./rpc": { "types": "./src/rpc.ts", "import": "./src/rpc.ts" },
     "./run": { "types": "./src/run.ts", "import": "./src/run.ts" },
+    "./secrets": { "types": "./src/secrets.ts", "import": "./src/secrets.ts" },
     "./target": { "types": "./src/target.ts", "import": "./src/target.ts" },
     "./tool": { "types": "./src/tool.ts", "import": "./src/tool.ts" }
   },

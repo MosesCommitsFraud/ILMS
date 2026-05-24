@@ -102,6 +102,8 @@ function dedupKey(artifact: Artifact): string | null {
       return `profile:${artifact.url}`;
     case "link":
       return `link:${artifact.url}`;
+    case "email":
+      return `email:${artifact.email.toLowerCase()}`;
     default:
       return null;
   }

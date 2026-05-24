@@ -10,6 +10,7 @@ import {
   PersistedArtifactSchema,
   RunSchema,
 } from "./run";
+import { SecretEntrySchema, SecretSetInputSchema } from "./secrets";
 import { TargetCreateInputSchema, TargetSchema } from "./target";
 import { ToolDescriptorSchema, ToolRunInputSchema, ToolRunStartedSchema } from "./tool";
 
@@ -23,54 +24,24 @@ export type RpcMethodMap = Record<string, RpcMethodDefinition>;
 const OkSchema = z.object({ ok: z.boolean() });
 
 export const rpcMethods = {
-  "case.list": {
-    input: z.object({}),
-    output: z.array(CaseSchema),
-  },
-  "case.get": {
-    input: z.object({ id: z.string() }),
-    output: CaseSchema,
-  },
-  "case.create": {
-    input: CaseCreateInputSchema,
-    output: CaseSchema,
-  },
-  "case.update": {
-    input: CaseUpdateInputSchema,
-    output: CaseSchema,
-  },
-  "case.delete": {
-    input: z.object({ id: z.string() }),
-    output: OkSchema,
-  },
-  "target.list": {
-    input: z.object({ caseId: z.string() }),
-    output: z.array(TargetSchema),
-  },
-  "target.create": {
-    input: TargetCreateInputSchema,
-    output: TargetSchema,
-  },
-  "target.delete": {
-    input: z.object({ id: z.string() }),
-    output: OkSchema,
-  },
-  "run.list": {
-    input: z.object({ caseId: z.string() }),
-    output: z.array(RunSchema),
-  },
+  "case.list": { input: z.object({}), output: z.array(CaseSchema) },
+  "case.get": { input: z.object({ id: z.string() }), output: CaseSchema },
+  "case.create": { input: CaseCreateInputSchema, output: CaseSchema },
+  "case.update": { input: CaseUpdateInputSchema, output: CaseSchema },
+  "case.delete": { input: z.object({ id: z.string() }), output: OkSchema },
+  "target.list": { input: z.object({ caseId: z.string() }), output: z.array(TargetSchema) },
+  "target.create": { input: TargetCreateInputSchema, output: TargetSchema },
+  "target.delete": { input: z.object({ id: z.string() }), output: OkSchema },
+  "run.list": { input: z.object({ caseId: z.string() }), output: z.array(RunSchema) },
   "artifact.list": {
     input: z.object({ caseId: z.string().optional(), runId: z.string().optional() }),
     output: z.array(PersistedArtifactSchema),
   },
-  "tool.list": {
-    input: z.object({}),
-    output: z.array(ToolDescriptorSchema),
-  },
-  "tool.run": {
-    input: ToolRunInputSchema,
-    output: ToolRunStartedSchema,
-  },
+  "tool.list": { input: z.object({}), output: z.array(ToolDescriptorSchema) },
+  "tool.run": { input: ToolRunInputSchema, output: ToolRunStartedSchema },
+  "secrets.list": { input: z.object({}), output: z.array(SecretEntrySchema) },
+  "secrets.set": { input: SecretSetInputSchema, output: OkSchema },
+  "secrets.delete": { input: z.object({ key: z.string() }), output: OkSchema },
 } satisfies RpcMethodMap;
 
 export type RpcMethod = keyof typeof rpcMethods;

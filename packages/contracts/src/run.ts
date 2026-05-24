@@ -14,9 +14,15 @@ export const LinkArtifactSchema = z.object({
   url: z.string(),
   label: z.string().optional(),
 });
+export const EmailArtifactSchema = z.object({
+  kind: z.literal("email"),
+  email: z.string(),
+  source: z.string().optional(),
+});
 export const ArtifactSchema = z.discriminatedUnion("kind", [
   ProfileArtifactSchema,
   LinkArtifactSchema,
+  EmailArtifactSchema,
 ]);
 export type Artifact = z.infer<typeof ArtifactSchema>;
 

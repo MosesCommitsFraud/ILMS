@@ -332,7 +332,7 @@ function ArtifactsSection({ artifacts }: { artifacts: PersistedArtifact[] }) {
         <ul className="divide-y divide-white/10">
           {artifacts.map((p) => (
             <li key={p.id} className="py-2">
-              {p.artifact.kind === "profile" ? (
+              {p.artifact.kind === "profile" && (
                 <div className="flex items-center justify-between gap-4">
                   <span className="text-sm text-white">{p.artifact.site}</span>
                   <a
@@ -344,7 +344,8 @@ function ArtifactsSection({ artifacts }: { artifacts: PersistedArtifact[] }) {
                     {p.artifact.url}
                   </a>
                 </div>
-              ) : (
+              )}
+              {p.artifact.kind === "link" && (
                 <a
                   href={p.artifact.url}
                   target="_blank"
@@ -353,6 +354,16 @@ function ArtifactsSection({ artifacts }: { artifacts: PersistedArtifact[] }) {
                 >
                   {p.artifact.label ?? p.artifact.url}
                 </a>
+              )}
+              {p.artifact.kind === "email" && (
+                <div className="flex items-center justify-between gap-4">
+                  <span className="text-sm text-white">{p.artifact.email}</span>
+                  {p.artifact.source && (
+                    <span className="text-[10px] uppercase tracking-wider text-white/30">
+                      {p.artifact.source}
+                    </span>
+                  )}
+                </div>
               )}
             </li>
           ))}

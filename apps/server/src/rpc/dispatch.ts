@@ -15,6 +15,7 @@ import {
 } from "../cases/store";
 import { startRun } from "../runs/manager";
 import { listArtifacts, listRuns } from "../runs/store";
+import { deleteSecret, listSecrets, setSecret } from "../secrets/store";
 import { createTarget, deleteTarget, listTargets } from "../targets/store";
 import { listTools } from "../tools/registry";
 
@@ -43,6 +44,15 @@ const handlers = {
   "tool.run": ({ toolId, input, caseId }) => ({
     runId: startRun({ toolId, input, caseId: caseId ?? null }),
   }),
+  "secrets.list": () => listSecrets(),
+  "secrets.set": ({ key, value }) => {
+    setSecret(key, value);
+    return { ok: true };
+  },
+  "secrets.delete": ({ key }) => {
+    deleteSecret(key);
+    return { ok: true };
+  },
 } satisfies RpcHandlers;
 
 function executeParsedRpcHandler(method: RpcMethod, input: unknown) {

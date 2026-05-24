@@ -3,6 +3,7 @@ import { useState } from "react";
 import { CaseRoute } from "./routes/Case";
 import { CasesRoute } from "./routes/Cases";
 import { RunRoute } from "./routes/Run";
+import { SettingsRoute } from "./routes/Settings";
 import { ToolRoute } from "./routes/Tool";
 import { ToolsRoute } from "./routes/Tools";
 
@@ -11,14 +12,15 @@ export type View =
   | { kind: "case"; caseId: string }
   | { kind: "tools" }
   | { kind: "tool"; toolId: string; caseId?: string | undefined }
-  | { kind: "run"; runId: string; toolId: string; caseId?: string | undefined };
+  | { kind: "run"; runId: string; toolId: string; caseId?: string | undefined }
+  | { kind: "settings" };
 
 const NAV: Array<{ label: string; view: View; enabled?: boolean }> = [
   { label: "Cases", view: { kind: "cases" } },
   { label: "Tools", view: { kind: "tools" } },
   { label: "Agent", view: { kind: "cases" }, enabled: false },
   { label: "Reports", view: { kind: "cases" }, enabled: false },
-  { label: "Settings", view: { kind: "cases" }, enabled: false },
+  { label: "Settings", view: { kind: "settings" } },
 ];
 
 export function App() {
@@ -71,6 +73,7 @@ export function App() {
             }
           />
         )}
+        {view.kind === "settings" && <SettingsRoute />}
         {view.kind === "run" && (
           <RunRoute
             runId={view.runId}

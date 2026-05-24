@@ -19,12 +19,20 @@ export const ToolInputFieldSchema = z.object({
 });
 export type ToolInputField = z.infer<typeof ToolInputFieldSchema>;
 
+export const ToolSecretRequirementSchema = z.object({
+  key: z.string(),
+  label: z.string(),
+  help: z.string().optional(),
+});
+export type ToolSecretRequirement = z.infer<typeof ToolSecretRequirementSchema>;
+
 export const ToolDescriptorSchema = z.object({
   id: z.string(),
   label: z.string(),
   description: z.string(),
   risk: ToolRiskSchema,
   inputFields: z.array(ToolInputFieldSchema),
+  requiredSecrets: z.array(ToolSecretRequirementSchema).default([]),
 });
 export type ToolDescriptor = z.infer<typeof ToolDescriptorSchema>;
 

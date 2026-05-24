@@ -62,11 +62,17 @@ export function AgentRoute({ caseId, onBack }: AgentRouteProps) {
       const event: AgentEvent = parsed.data;
       if (event.kind === "message") {
         setMessages((prev) => {
-          if (prev.some((m) => m.id === event.message.id)) return prev;
-          return [...prev, event.message];
+          // upsert by id
+          const idx = prev.findIndex((m) => m.id === event.message.id);
+          if (idx === -1) return [...prev, event.message];
+          const next = prev.slice();
+          next[idx] = event.message;
+          return next;
         });
       } else if (event.kind === "permission_requested") {
-        setPending((prev) => [...prev, event.request]);
+        setPending((prev) =>
+          prev.some((p) => p.id === event.request.id) ? prev : [...prev, event.request],
+        );
         setStatus("awaiting_permission");
       } else if (event.kind === "permission_resolved") {
         setPending((prev) => prev.filter((p) => p.id !== event.permissionId));
@@ -98,9 +104,17 @@ export function AgentRoute({ caseId, onBack }: AgentRouteProps) {
     }
   }
 
-  async function onPermission(permissionId: string, approved: boolean) {
+  async function onPermission(
+    permissionId: string,
+    response: "once" | "always" | "reject",
+  ) {
+    if (!session) return;
     try {
-      await rpc.call("agent.respondToPermission", { permissionId, approved });
+      await rpc.call("agent.respondToPermission", {
+        sessionId: session.id,
+        permissionId,
+        response,
+      });
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
     }
@@ -134,7 +148,7 @@ export function AgentRoute({ caseId, onBack }: AgentRouteProps) {
       >
         {messages.length === 0 && pending.length === 0 && (
           <div className="text-center text-sm text-white/30">
-            Say something to get started. The agent has access to all tools and the current case.
+            Say something to get started. The agent uses opencode and has access to all 10 ILMS tools through MCP.
           </div>
         )}
         {messages.map((m) => (
@@ -166,52 +180,66 @@ export function AgentRoute({ caseId, onBack }: AgentRouteProps) {
 }
 
 function MessageBubble({ message }: { message: AgentMessage }) {
-  const c = message.content;
-  if (c.type === "user_text") {
+  if (message.role === "user") {
+    const text = message.parts.map((p) => (p.text ?? "")).join("");
     return (
       <div className="flex justify-end">
-        <div className="max-w-[80%] rounded-lg bg-white/10 px-3 py-2 text-sm text-white">
-          {c.text}
-        </div>
+        <div className="max-w-[80%] rounded-lg bg-white/10 px-3 py-2 text-sm text-white">{text}</div>
       </div>
     );
   }
-  if (c.type === "assistant") {
-    return (
-      <div className="space-y-2">
-        {c.blocks.map((b, i) =>
-          b.type === "text" ? (
+  return (
+    <div className="space-y-2">
+      {message.parts.map((part, i) => {
+        if (part.type === "text") {
+          return (
             <div key={i} className="text-sm text-white/90 whitespace-pre-wrap">
-              {b.text}
+              {part.text ?? ""}
             </div>
-          ) : (
+          );
+        }
+        if (part.type === "reasoning") {
+          return (
+            <div key={i} className="rounded border border-white/5 bg-white/[0.02] px-3 py-2 text-xs text-white/40 italic">
+              {part.text ?? ""}
+            </div>
+          );
+        }
+        if (part.type === "tool") {
+          const tool = (part as Record<string, unknown>).tool as string | undefined;
+          const stateObj = (part as Record<string, unknown>).state as Record<string, unknown> | undefined;
+          const status = (stateObj?.status as string | undefined) ?? "pending";
+          const ok = status === "completed";
+          const errored = status === "error";
+          return (
             <div
               key={i}
-              className="rounded border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/60"
+              className={
+                "rounded border px-3 py-2 text-xs " +
+                (errored
+                  ? "border-red-500/30 bg-red-500/5 text-red-200"
+                  : ok
+                    ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-200"
+                    : "border-white/10 bg-white/5 text-white/60")
+              }
             >
-              <span className="text-white/40">tool_use → </span>
-              <span className="font-mono text-white">{b.toolId}</span>
-              <pre className="mt-1 overflow-x-auto text-[10px] text-white/40">
-                {JSON.stringify(b.input, null, 2)}
-              </pre>
+              <span className="text-white/40">tool · </span>
+              <span className="font-mono text-white">{tool ?? "unknown"}</span>
+              <span className="ml-2 text-[10px] uppercase tracking-wider text-white/40">{status}</span>
+              {stateObj?.output !== undefined && (
+                <pre className="mt-1 overflow-x-auto text-[10px] text-white/40 whitespace-pre-wrap">
+                  {typeof stateObj.output === "string" ? stateObj.output : JSON.stringify(stateObj.output, null, 2)}
+                </pre>
+              )}
             </div>
-          ),
-        )}
-      </div>
-    );
-  }
-  // tool_result
-  return (
-    <div
-      className={
-        "rounded border px-3 py-2 text-xs " +
-        (c.ok
-          ? "border-emerald-500/30 bg-emerald-500/5 text-emerald-200"
-          : "border-red-500/30 bg-red-500/5 text-red-200")
-      }
-    >
-      <span className="text-white/40">tool_result {c.toolId}: </span>
-      {c.summary}
+          );
+        }
+        return (
+          <div key={i} className="rounded border border-white/10 px-3 py-2 text-[10px] text-white/40">
+            <span className="text-white/30">{part.type}</span>
+          </div>
+        );
+      })}
     </div>
   );
 }
@@ -221,31 +249,43 @@ function PermissionCard({
   onDecide,
 }: {
   request: PendingPermissionRequest;
-  onDecide: (permissionId: string, approved: boolean) => void;
+  onDecide: (permissionId: string, response: "once" | "always" | "reject") => void;
 }) {
   return (
     <div className="rounded border border-amber-500/40 bg-amber-500/5 px-3 py-3">
       <div className="text-xs uppercase tracking-wider text-amber-200/70">Permission requested</div>
-      <div className="mt-1 text-sm text-white">
-        Run <span className="font-mono text-amber-200">{request.toolId}</span>
-      </div>
-      <pre className="mt-2 overflow-x-auto rounded bg-black/40 px-2 py-1 text-[10px] text-white/60">
-        {JSON.stringify(request.input, null, 2)}
-      </pre>
+      <div className="mt-1 text-sm text-white">{request.title}</div>
+      {request.pattern && (
+        <pre className="mt-2 overflow-x-auto rounded bg-black/40 px-2 py-1 text-[10px] text-white/60">
+          {Array.isArray(request.pattern) ? request.pattern.join("\n") : request.pattern}
+        </pre>
+      )}
+      {Object.keys(request.metadata).length > 0 && (
+        <pre className="mt-2 overflow-x-auto rounded bg-black/40 px-2 py-1 text-[10px] text-white/60">
+          {JSON.stringify(request.metadata, null, 2)}
+        </pre>
+      )}
       <div className="mt-3 flex gap-2">
         <button
           type="button"
-          onClick={() => onDecide(request.id, true)}
+          onClick={() => onDecide(request.id, "once")}
           className="rounded border border-emerald-500/40 bg-emerald-500/10 px-3 py-1 text-xs text-emerald-200 hover:bg-emerald-500/20"
         >
-          Approve
+          Approve once
         </button>
         <button
           type="button"
-          onClick={() => onDecide(request.id, false)}
+          onClick={() => onDecide(request.id, "always")}
+          className="rounded border border-emerald-500/30 px-3 py-1 text-xs text-emerald-200/70 hover:bg-emerald-500/10"
+        >
+          Always
+        </button>
+        <button
+          type="button"
+          onClick={() => onDecide(request.id, "reject")}
           className="rounded border border-white/10 px-3 py-1 text-xs text-white/60 hover:bg-white/5"
         >
-          Deny
+          Reject
         </button>
       </div>
     </div>

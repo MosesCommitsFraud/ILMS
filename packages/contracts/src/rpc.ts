@@ -4,6 +4,7 @@ import {
   AgentEventSchema,
   AgentMessageSchema,
   AgentPermissionDecisionSchema,
+  AgentRuntimeStatusSchema,
   AgentSendMessageInputSchema,
   AgentSessionSchema,
   PendingPermissionRequestSchema,
@@ -73,6 +74,10 @@ export const rpcMethods = {
   "agent.respondToPermission": {
     input: AgentPermissionDecisionSchema,
     output: OkSchema,
+  },
+  "agent.runtimeStatus": {
+    input: z.object({}),
+    output: AgentRuntimeStatusSchema,
   },
 } satisfies RpcMethodMap;
 

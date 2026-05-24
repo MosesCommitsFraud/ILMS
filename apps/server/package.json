@@ -12,10 +12,10 @@
     "prepare:tools": "uv tool install sherlock-project && uv tool install toutatis && uv tool install crosslinked"
   },
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.98.0",
     "@elysiajs/cors": "^1.4.0",
     "@ilms/contracts": "workspace:*",
     "@ilms/shared": "workspace:*",
+    "@opencode-ai/sdk": "^1.3.0",
     "elysia": "^1.4.28",
     "playwright-core": "^1.49.0",
     "zod": "^4.0.0"

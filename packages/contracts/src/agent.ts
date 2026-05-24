@@ -3,58 +3,45 @@ import { z } from "zod";
 export const AgentSessionSchema = z.object({
   id: z.string(),
   caseId: z.string(),
+  opencodeSessionId: z.string().nullable(),
   createdAt: z.string(),
   updatedAt: z.string(),
 });
 export type AgentSession = z.infer<typeof AgentSessionSchema>;
 
 /**
- * Content blocks for assistant messages — these mirror the shape Anthropic's
- * messages API returns. A persisted assistant message can contain text plus
- * any number of tool_use blocks; each tool_use is later paired with a
- * tool_result message that records what the driver did.
+ * One assistant or user message as opencode reports it. Mirrors the upstream
+ * shape (info + parts) loosely so we can render anything opencode emits
+ * without losing fidelity. Part type is left open as a string because
+ * opencode adds new part kinds over time (text, tool, reasoning, file,
+ * step-start, step-finish, …).
  */
-export const AssistantBlockSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("text"), text: z.string() }),
-  z.object({
-    type: z.literal("tool_use"),
-    toolUseId: z.string(),
-    toolId: z.string(),
-    input: z.record(z.string(), z.unknown()),
-  }),
-]);
-export type AssistantBlock = z.infer<typeof AssistantBlockSchema>;
-
-export const AgentMessageContentSchema = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("user_text"), text: z.string() }),
-  z.object({ type: z.literal("assistant"), blocks: z.array(AssistantBlockSchema) }),
-  z.object({
-    type: z.literal("tool_result"),
-    toolUseId: z.string(),
-    toolId: z.string(),
-    runId: z.string().nullable(),
-    summary: z.string(),
-    ok: z.boolean(),
-  }),
-]);
-export type AgentMessageContent = z.infer<typeof AgentMessageContentSchema>;
-
 export const AgentMessageSchema = z.object({
   id: z.string(),
+  role: z.string(),
   sessionId: z.string(),
-  sequence: z.number().int(),
-  content: AgentMessageContentSchema,
-  createdAt: z.string(),
+  parts: z.array(
+    z
+      .object({
+        type: z.string(),
+        text: z.string().optional(),
+      })
+      .catchall(z.unknown()),
+  ),
+  error: z.unknown().optional(),
 });
 export type AgentMessage = z.infer<typeof AgentMessageSchema>;
 
 export const PendingPermissionRequestSchema = z.object({
   id: z.string(),
   sessionId: z.string(),
-  toolUseId: z.string(),
-  toolId: z.string(),
-  input: z.record(z.string(), z.unknown()),
-  createdAt: z.string(),
+  type: z.string(),
+  title: z.string(),
+  messageId: z.string(),
+  callId: z.string().optional(),
+  pattern: z.union([z.string(), z.array(z.string())]).optional(),
+  metadata: z.record(z.string(), z.unknown()),
+  createdAt: z.number(),
 });
 export type PendingPermissionRequest = z.infer<typeof PendingPermissionRequestSchema>;
 
@@ -74,24 +61,26 @@ export const AgentSendMessageInputSchema = z.object({
 export type AgentSendMessageInput = z.infer<typeof AgentSendMessageInputSchema>;
 
 export const AgentPermissionDecisionSchema = z.object({
+  sessionId: z.string(),
   permissionId: z.string(),
-  approved: z.boolean(),
+  response: z.enum(["once", "always", "reject"]),
 });
 export type AgentPermissionDecision = z.infer<typeof AgentPermissionDecisionSchema>;
 
-/**
- * Server-pushed events on the "agent.event" channel, keyed by sessionId.
- * Mirrors run.event's shape so client-side handling is symmetrical.
- */
 export const AgentEventSchema = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("message"), message: AgentMessageSchema }),
   z.object({ kind: z.literal("permission_requested"), request: PendingPermissionRequestSchema }),
-  z.object({
-    kind: z.literal("permission_resolved"),
-    permissionId: z.string(),
-    approved: z.boolean(),
-  }),
+  z.object({ kind: z.literal("permission_resolved"), permissionId: z.string() }),
   z.object({ kind: z.literal("status"), status: AgentStatusSchema }),
   z.object({ kind: z.literal("error"), message: z.string() }),
 ]);
 export type AgentEvent = z.infer<typeof AgentEventSchema>;
+
+export const AgentRuntimeStatusSchema = z.object({
+  binaryFound: z.boolean(),
+  running: z.boolean(),
+  healthy: z.boolean(),
+  baseUrl: z.string(),
+  lastError: z.string().nullable(),
+});
+export type AgentRuntimeStatus = z.infer<typeof AgentRuntimeStatusSchema>;

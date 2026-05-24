@@ -89,11 +89,12 @@ Set `ILMS_DATA_DIR` to relocate the lot.
 
 Each case has an embedded agent that can drive any of the 10 tools on your behalf. Implementation:
 
-- `@anthropic-ai/sdk` with a custom tool-use loop. We own the loop, intercept every `tool_use` block, and route it through a permission gate before the tool actually runs.
-- Each ToolDescriptor is converted to an Anthropic tool spec (JSON Schema from `inputFields`). The agent's tool calls go through the existing `runs/manager`, so artifacts persist to the case just like manual runs.
-- Approve / deny each proposed tool call from the chat UI. `runs/manager` then executes the driver, the agent gets a summary back, and the loop continues until the model says `end_turn`.
-
-Configure `agent.anthropic.api_key` (and optionally `agent.anthropic.model`, default `claude-sonnet-4-5`) under Settings.
+- ILMS embeds the [`opencode`](https://opencode.ai/) binary as a sidecar (spawned automatically when the server starts).
+- A small **MCP stdio server** under `apps/mcp` exposes every ToolDriver as an MCP tool. opencode discovers them via a generated runtime config and the LLM can call them by name.
+- Each MCP tool call routes through the existing `runs/manager`, so agent-driven runs persist artifacts to the case just like manual runs.
+- The agent's chat, message streaming, and tool execution all flow through opencode; we subscribe to its SSE event stream and rebroadcast normalized events on the `agent.event` channel for the UI.
+- **Auth**: opencode owns provider auth. Run `opencode auth login` once, pick a provider (Anthropic, OpenAI, etc.), and you're set. ILMS does not store API keys.
+- Optionally pin a model under Settings → Agent (`agent.opencode.provider` + `agent.opencode.model`).
 
 ## Status
 

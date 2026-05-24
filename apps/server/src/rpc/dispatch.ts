@@ -6,10 +6,14 @@ import {
 } from "@ilms/contracts/rpc";
 import { ZodError } from "zod";
 
-import { resolvePermission } from "../agent/permissionGate";
-import { sendUserMessage } from "../agent/runner";
-import { listMessages, openSession } from "../agent/store";
-import { listPending } from "../agent/permissionGate";
+import { getRuntimeStatus } from "../agent/opencodeRuntime";
+import {
+  listOpencodeMessages,
+  listPendingPermissions,
+  respondToPermission,
+  sendUserMessage,
+} from "../agent/runner";
+import { openSession } from "../agent/store";
 import {
   createCase,
   deleteCase,
@@ -63,16 +67,17 @@ const handlers = {
     content: renderMarkdown(loadReportBundle(caseId)),
   }),
   "agent.openSession": ({ caseId }) => openSession(caseId),
-  "agent.listMessages": ({ sessionId }) => listMessages(sessionId),
-  "agent.listPendingPermissions": ({ sessionId }) => listPending(sessionId),
+  "agent.listMessages": ({ sessionId }) => listOpencodeMessages(sessionId),
+  "agent.listPendingPermissions": ({ sessionId }) => listPendingPermissions(sessionId),
   "agent.sendMessage": async ({ sessionId, message }) => {
     void sendUserMessage({ sessionId, message }).catch(() => undefined);
     return { ok: true };
   },
-  "agent.respondToPermission": ({ permissionId, approved }) => {
-    const ok = resolvePermission(permissionId, approved);
-    return { ok };
+  "agent.respondToPermission": async ({ sessionId, permissionId, response }) => {
+    await respondToPermission({ sessionId, permissionId, response });
+    return { ok: true };
   },
+  "agent.runtimeStatus": () => getRuntimeStatus(),
 } satisfies RpcHandlers;
 
 function executeParsedRpcHandler(method: RpcMethod, input: unknown) {

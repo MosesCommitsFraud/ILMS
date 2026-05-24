@@ -72,6 +72,14 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
       CREATE INDEX agent_messages_session_idx ON agent_messages(session_id);
     `,
   },
+  {
+    version: 3,
+    sql: `
+      -- opencode now owns conversation history; drop our local mirror.
+      DROP TABLE IF EXISTS agent_messages;
+      ALTER TABLE agent_sessions ADD COLUMN opencode_session_id TEXT;
+    `,
+  },
 ];
 
 export function migrate(db: Database): void {

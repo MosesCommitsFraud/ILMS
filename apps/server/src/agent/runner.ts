@@ -1,34 +1,27 @@
-import Anthropic from "@anthropic-ai/sdk";
-
 import type {
   AgentEvent,
   AgentMessage,
-  AgentMessageContent,
   AgentStatus,
-  AssistantBlock,
+  PendingPermissionRequest,
 } from "@ilms/contracts/agent";
 
 import { getCase } from "../cases/store";
 import { broadcastEvent } from "../rpc/broadcast";
-import { runToCompletion } from "../runs/manager";
 import { listArtifacts, listRuns } from "../runs/store";
 import { getSecret } from "../secrets/store";
 import { listTargets } from "../targets/store";
 import { listTools } from "../tools/registry";
 
-import { createPermissionRequest } from "./permissionGate";
-import { appendMessage, getSession, listMessages } from "./store";
+import { getOpencodeClient } from "./openCodeClient";
+import { ensureOpencodeRuntime } from "./opencodeRuntime";
+import { clearPermission, listPending, recordPermission } from "./permissionGate";
+import { getSession, setOpencodeSessionId, touchSession, getSessionByOpencodeId } from "./store";
 import { buildSystemPrompt, type CaseContext } from "./systemPrompt";
-import { anthropicToolName, toolIdFromAnthropicName, toolToAnthropic } from "./toolSchema";
 
-const API_KEY_SECRET = "agent.anthropic.api_key";
-const MODEL_SECRET = "agent.anthropic.model";
-const DEFAULT_MODEL = "claude-sonnet-4-5";
-const MAX_TOKENS = 4096;
-const MAX_ITERATIONS = 8;
+const MODEL_SECRET = "agent.opencode.model";
+const PROVIDER_SECRET = "agent.opencode.provider";
 
-/** Sessions currently running a turn — prevents concurrent send. */
-const inFlight = new Set<string>();
+let subscriptionStarted = false;
 
 function emit(sessionId: string, event: AgentEvent): void {
   broadcastEvent({ event: "agent.event", key: sessionId, payload: event });
@@ -38,67 +31,158 @@ function emitStatus(sessionId: string, status: AgentStatus): void {
   emit(sessionId, { kind: "status", status });
 }
 
-function emitMessage(sessionId: string, message: AgentMessage): void {
-  emit(sessionId, { kind: "message", message });
-}
-
-function persistAndEmit(sessionId: string, content: AgentMessageContent): AgentMessage {
-  const msg = appendMessage(sessionId, content);
-  emitMessage(sessionId, msg);
-  return msg;
-}
-
 function loadCaseContext(caseId: string): CaseContext {
   const c = getCase(caseId);
   const targets = listTargets(caseId);
   const runs = listRuns(caseId);
   const artifacts = listArtifacts({ caseId });
-  const artifactCounts: Record<string, number> = {};
-  for (const a of artifacts) {
-    artifactCounts[a.artifact.kind] = (artifactCounts[a.artifact.kind] ?? 0) + 1;
-  }
-  return { case: c, targets, recentRuns: runs, artifactCounts };
+  const counts: Record<string, number> = {};
+  for (const a of artifacts) counts[a.artifact.kind] = (counts[a.artifact.kind] ?? 0) + 1;
+  return { case: c, targets, recentRuns: runs, artifactCounts: counts };
 }
 
-/**
- * Convert persisted AgentMessages into the Anthropic messages array. Each
- * user_text becomes a user message; each assistant content (text + tool_use
- * blocks) becomes an assistant message; each tool_result becomes a user
- * message whose content is a tool_result block.
- */
-function toAnthropicMessages(messages: AgentMessage[]): Anthropic.MessageParam[] {
-  const out: Anthropic.MessageParam[] = [];
-  for (const m of messages) {
-    const c = m.content;
-    if (c.type === "user_text") {
-      out.push({ role: "user", content: c.text });
-    } else if (c.type === "assistant") {
-      const blocks: Anthropic.ContentBlockParam[] = c.blocks.map((b) =>
-        b.type === "text"
-          ? { type: "text" as const, text: b.text }
-          : {
-              type: "tool_use" as const,
-              id: b.toolUseId,
-              name: anthropicToolName(b.toolId),
-              input: b.input,
-            },
-      );
-      out.push({ role: "assistant", content: blocks });
-    } else if (c.type === "tool_result") {
-      out.push({
-        role: "user",
-        content: [
-          {
-            type: "tool_result" as const,
-            tool_use_id: c.toolUseId,
-            content: c.summary,
-            ...(c.ok ? {} : { is_error: true }),
-          },
-        ],
-      });
-    }
+async function ensureRuntimeForSession(): Promise<void> {
+  const httpUrl = process.env.ILMS_HTTP_URL?.trim() || "http://127.0.0.1:4242";
+  const wsUrl = process.env.ILMS_WS_URL?.trim() || httpUrl.replace(/^http/, "ws") + "/rpc";
+  await ensureOpencodeRuntime({ httpUrl, wsUrl });
+  if (!subscriptionStarted) {
+    subscriptionStarted = true;
+    void startOpencodeEventSubscription();
   }
-  return out;
+}
+
+async function startOpencodeEventSubscription(): Promise<void> {
+  const client = getOpencodeClient();
+  try {
+    const result = await client.event.subscribe();
+    for await (const event of result.stream) {
+      try {
+        handleOpencodeEvent(event as { type: string; properties?: unknown });
+      } catch (error) {
+        console.error("opencode event handler failed:", error);
+      }
+    }
+  } catch (error) {
+    console.error("opencode SSE subscription error:", error);
+    subscriptionStarted = false;
+  }
+}
+
+function handleOpencodeEvent(event: { type: string; properties?: unknown }): void {
+  const properties = (event.properties ?? {}) as Record<string, unknown>;
+
+  if (event.type === "message.updated") {
+    const info = (properties.info ?? {}) as { sessionID?: string; id?: string; role?: string; error?: unknown };
+    if (!info.sessionID) return;
+    const session = getSessionByOpencodeId(info.sessionID);
+    if (!session) return;
+    touchSession(session.id);
+    const message = normalizeMessage(properties);
+    if (message) emit(session.id, { kind: "message", message });
+    return;
+  }
+
+  if (event.type === "permission.updated") {
+    const props = properties as {
+      id?: string;
+      sessionID?: string;
+      type?: string;
+      title?: string;
+      messageID?: string;
+      callID?: string;
+      pattern?: string | string[];
+      metadata?: Record<string, unknown>;
+      time?: { created?: number };
+    };
+    if (!props.id || !props.sessionID) return;
+    const session = getSessionByOpencodeId(props.sessionID);
+    if (!session) return;
+    const request: PendingPermissionRequest = {
+      id: props.id,
+      sessionId: session.id,
+      type: props.type ?? "unknown",
+      title: props.title ?? "Tool call",
+      messageId: props.messageID ?? "",
+      ...(props.callID ? { callId: props.callID } : {}),
+      ...(props.pattern ? { pattern: props.pattern } : {}),
+      metadata: props.metadata ?? {},
+      createdAt: props.time?.created ?? Date.now(),
+    };
+    recordPermission(request);
+    emit(session.id, { kind: "permission_requested", request });
+    emitStatus(session.id, "awaiting_permission");
+    return;
+  }
+
+  if (event.type === "permission.replied") {
+    const props = properties as { permissionID?: string; sessionID?: string };
+    if (!props.permissionID || !props.sessionID) return;
+    const session = getSessionByOpencodeId(props.sessionID);
+    if (!session) return;
+    clearPermission(props.permissionID);
+    emit(session.id, { kind: "permission_resolved", permissionId: props.permissionID });
+    return;
+  }
+
+  if (event.type === "session.idle") {
+    const props = properties as { sessionID?: string };
+    if (!props.sessionID) return;
+    const session = getSessionByOpencodeId(props.sessionID);
+    if (!session) return;
+    emitStatus(session.id, "idle");
+    return;
+  }
+
+  if (event.type === "session.status") {
+    const props = properties as { sessionID?: string; status?: { type?: string } };
+    if (!props.sessionID) return;
+    const session = getSessionByOpencodeId(props.sessionID);
+    if (!session) return;
+    emitStatus(session.id, props.status?.type === "busy" ? "thinking" : "idle");
+    return;
+  }
+}
+
+function normalizeMessage(properties: Record<string, unknown>): AgentMessage | null {
+  const info = (properties.info ?? {}) as {
+    id?: string;
+    role?: string;
+    sessionID?: string;
+    error?: unknown;
+  };
+  const parts = Array.isArray(properties.parts) ? (properties.parts as Array<Record<string, unknown>>) : [];
+  if (!info.id || !info.sessionID) return null;
+  return {
+    id: info.id,
+    role: info.role ?? "assistant",
+    sessionId: info.sessionID,
+    parts: parts.map((p) => ({
+      ...(p as Record<string, unknown>),
+      type: typeof p.type === "string" ? p.type : "unknown",
+      ...(typeof p.text === "string" ? { text: p.text } : {}),
+    })),
+    ...(info.error !== undefined ? { error: info.error } : {}),
+  };
+}
+
+async function ensureOpencodeSession(sessionId: string): Promise<string> {
+  const session = getSession(sessionId);
+  if (!session) throw new Error(`Unknown agent session: ${sessionId}`);
+  if (session.opencodeSessionId) return session.opencodeSessionId;
+  const client = getOpencodeClient();
+  const created = await client.session.create({ body: { title: `ILMS case ${session.caseId}` } } as never);
+  const data = (created as { data?: { id?: string } }).data;
+  const opencodeId = data?.id;
+  if (!opencodeId) throw new Error("Failed to create opencode session");
+  setOpencodeSessionId(sessionId, opencodeId);
+  return opencodeId;
+}
+
+function resolveModel(): { providerID?: string; modelID?: string } {
+  const model = getSecret(MODEL_SECRET);
+  const provider = getSecret(PROVIDER_SECRET);
+  if (model && provider) return { providerID: provider, modelID: model };
+  return {};
 }
 
 export async function sendUserMessage(args: {
@@ -108,150 +192,73 @@ export async function sendUserMessage(args: {
   const session = getSession(args.sessionId);
   if (!session) throw new Error(`Unknown session: ${args.sessionId}`);
 
-  if (inFlight.has(args.sessionId)) {
-    throw new Error("Agent is already processing a message for this session");
-  }
-
-  const apiKey = getSecret(API_KEY_SECRET);
-  if (!apiKey) {
-    persistAndEmit(args.sessionId, { type: "user_text", text: args.message });
+  try {
+    await ensureRuntimeForSession();
+  } catch (error) {
     emit(args.sessionId, {
       kind: "error",
-      message: `Missing secret "${API_KEY_SECRET}". Set it in Settings before sending agent messages.`,
+      message: error instanceof Error ? error.message : String(error),
     });
     emitStatus(args.sessionId, "error");
     return;
   }
 
-  inFlight.add(args.sessionId);
+  const opencodeSessionId = await ensureOpencodeSession(args.sessionId);
+  const client = getOpencodeClient();
+  const caseContext = loadCaseContext(session.caseId);
+  const system = buildSystemPrompt({ caseContext, tools: listTools() });
+  const model = resolveModel();
+
+  emitStatus(args.sessionId, "thinking");
   try {
-    persistAndEmit(args.sessionId, { type: "user_text", text: args.message });
-    await runTurn({ sessionId: args.sessionId, caseId: session.caseId, apiKey });
-  } finally {
-    inFlight.delete(args.sessionId);
-    emitStatus(args.sessionId, "idle");
+    await client.session.prompt({
+      path: { id: opencodeSessionId },
+      body: {
+        parts: [{ type: "text", text: args.message }],
+        system,
+        ...(model.providerID && model.modelID
+          ? { model: { providerID: model.providerID, modelID: model.modelID } }
+          : {}),
+      },
+    } as never);
+  } catch (error) {
+    emit(args.sessionId, {
+      kind: "error",
+      message: error instanceof Error ? error.message : String(error),
+    });
+    emitStatus(args.sessionId, "error");
   }
 }
 
-async function runTurn(args: {
+export async function listOpencodeMessages(sessionId: string): Promise<AgentMessage[]> {
+  const session = getSession(sessionId);
+  if (!session || !session.opencodeSessionId) return [];
+  const client = getOpencodeClient();
+  const result = (await client.session.messages({
+    path: { id: session.opencodeSessionId },
+  } as never)) as { data?: Array<Record<string, unknown>> };
+  if (!Array.isArray(result.data)) return [];
+  return result.data
+    .map((entry) => normalizeMessage(entry))
+    .filter((m): m is AgentMessage => m !== null);
+}
+
+export async function respondToPermission(args: {
   sessionId: string;
-  caseId: string;
-  apiKey: string;
+  permissionId: string;
+  response: "once" | "always" | "reject";
 }): Promise<void> {
-  const client = new Anthropic({ apiKey: args.apiKey });
-  const model = getSecret(MODEL_SECRET) || DEFAULT_MODEL;
-  const tools = listTools().map(toolToAnthropic);
+  const session = getSession(args.sessionId);
+  if (!session || !session.opencodeSessionId) throw new Error("Session has no opencode binding yet");
+  const client = getOpencodeClient();
+  await client.postSessionIdPermissionsPermissionId({
+    path: { id: session.opencodeSessionId, permissionID: args.permissionId },
+    body: { response: args.response },
+  } as never);
+  clearPermission(args.permissionId);
+  emit(args.sessionId, { kind: "permission_resolved", permissionId: args.permissionId });
+}
 
-  for (let iteration = 0; iteration < MAX_ITERATIONS; iteration++) {
-    const caseContext = loadCaseContext(args.caseId);
-    const system = buildSystemPrompt({ caseContext, tools: listTools() });
-    const messages = toAnthropicMessages(listMessages(args.sessionId));
-
-    emitStatus(args.sessionId, "thinking");
-
-    let response: Anthropic.Message;
-    try {
-      response = await client.messages.create({
-        model,
-        max_tokens: MAX_TOKENS,
-        system,
-        tools,
-        messages,
-      });
-    } catch (error) {
-      emit(args.sessionId, {
-        kind: "error",
-        message: error instanceof Error ? error.message : String(error),
-      });
-      return;
-    }
-
-    const blocks: AssistantBlock[] = [];
-    for (const block of response.content) {
-      if (block.type === "text") {
-        blocks.push({ type: "text", text: block.text });
-      } else if (block.type === "tool_use") {
-        blocks.push({
-          type: "tool_use",
-          toolUseId: block.id,
-          toolId: toolIdFromAnthropicName(block.name),
-          input: (block.input ?? {}) as Record<string, unknown>,
-        });
-      }
-    }
-
-    if (blocks.length > 0) {
-      persistAndEmit(args.sessionId, { type: "assistant", blocks });
-    }
-
-    if (response.stop_reason !== "tool_use") return;
-
-    // Process each tool_use: ask for permission, then run if approved.
-    const toolUses = blocks.filter(
-      (b): b is Extract<AssistantBlock, { type: "tool_use" }> => b.type === "tool_use",
-    );
-    for (const use of toolUses) {
-      const { request, decision } = createPermissionRequest({
-        sessionId: args.sessionId,
-        toolUseId: use.toolUseId,
-        toolId: use.toolId,
-        input: use.input,
-      });
-      emitStatus(args.sessionId, "awaiting_permission");
-      emit(args.sessionId, { kind: "permission_requested", request });
-      const approved = await decision;
-      emit(args.sessionId, {
-        kind: "permission_resolved",
-        permissionId: request.id,
-        approved,
-      });
-
-      if (!approved) {
-        persistAndEmit(args.sessionId, {
-          type: "tool_result",
-          toolUseId: use.toolUseId,
-          toolId: use.toolId,
-          runId: null,
-          summary: "User denied this tool call.",
-          ok: false,
-        });
-        continue;
-      }
-
-      emitStatus(args.sessionId, "running_tool");
-      try {
-        const result = await runToCompletion({
-          toolId: use.toolId,
-          input: use.input,
-          caseId: args.caseId,
-        });
-        const summary = result.ok
-          ? `Run ${result.runId} completed. ${result.artifactCount} artifact${result.artifactCount === 1 ? "" : "s"} persisted to the case.${result.errorMessage ? ` Note: ${result.errorMessage}` : ""}`
-          : `Run ${result.runId} failed: ${result.errorMessage ?? "unknown error"}`;
-        persistAndEmit(args.sessionId, {
-          type: "tool_result",
-          toolUseId: use.toolUseId,
-          toolId: use.toolId,
-          runId: result.runId,
-          summary,
-          ok: result.ok,
-        });
-      } catch (error) {
-        persistAndEmit(args.sessionId, {
-          type: "tool_result",
-          toolUseId: use.toolUseId,
-          toolId: use.toolId,
-          runId: null,
-          summary: error instanceof Error ? error.message : String(error),
-          ok: false,
-        });
-      }
-    }
-    // loop back to call the model again with tool_results in context
-  }
-
-  emit(args.sessionId, {
-    kind: "error",
-    message: `Hit max iterations (${MAX_ITERATIONS}). Stopping to prevent runaway.`,
-  });
+export function listPendingPermissions(sessionId: string) {
+  return listPending(sessionId);
 }

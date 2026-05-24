@@ -11,14 +11,14 @@ interface ToolGroup {
 
 const AGENT_REQUIREMENTS: ToolSecretRequirement[] = [
   {
-    key: "agent.anthropic.api_key",
-    label: "Anthropic API key",
-    help: "Required to send agent messages. Get one at https://console.anthropic.com/.",
+    key: "agent.opencode.provider",
+    label: "Opencode provider id (optional)",
+    help: 'Provider opencode should use, e.g. "anthropic" or "openai". Leave empty to use opencode\'s default.',
   },
   {
-    key: "agent.anthropic.model",
-    label: "Model override (optional)",
-    help: "Anthropic model id. Defaults to claude-sonnet-4-5 when unset.",
+    key: "agent.opencode.model",
+    label: "Opencode model id (optional)",
+    help: 'Model id within the provider, e.g. "claude-sonnet-4-5". Leave empty to use opencode\'s default.',
   },
 ];
 
@@ -78,7 +78,14 @@ export function SettingsRoute() {
       )}
 
       <section>
-        <h2 className="mb-3 text-xs uppercase tracking-wider text-white/40">Agent</h2>
+        <h2 className="mb-3 text-xs uppercase tracking-wider text-white/40">Agent (opencode)</h2>
+        <p className="mb-3 text-xs text-white/40">
+          ILMS embeds the <code>opencode</code> binary as a sidecar. Install it from{" "}
+          <a href="https://opencode.ai/" target="_blank" rel="noreferrer" className="text-blue-300 hover:underline">
+            opencode.ai
+          </a>{" "}
+          and run <code>opencode auth login</code> once to set up your model provider — ILMS doesn't store API keys directly.
+        </p>
         <div className="space-y-4">
           {AGENT_REQUIREMENTS.map((req) => (
             <SecretRow

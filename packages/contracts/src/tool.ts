@@ -11,11 +11,14 @@ export type ToolRisk = z.infer<typeof ToolRiskSchema>;
 export const ToolInputFieldSchema = z.object({
   name: z.string(),
   label: z.string(),
-  kind: z.enum(["text", "number"]),
+  kind: z.enum(["text", "number", "select"]),
   required: z.boolean().default(false),
   placeholder: z.string().optional(),
   defaultValue: z.union([z.string(), z.number()]).optional(),
   help: z.string().optional(),
+  options: z
+    .array(z.object({ value: z.string(), label: z.string() }))
+    .optional(),
 });
 export type ToolInputField = z.infer<typeof ToolInputFieldSchema>;
 

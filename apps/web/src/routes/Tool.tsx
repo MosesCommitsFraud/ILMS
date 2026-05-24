@@ -147,19 +147,32 @@ function Field({
   value: string;
   onChange: (value: string) => void;
 }) {
+  const baseClass =
+    "mt-1.5 w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-white/30";
   return (
     <label className="block">
       <span className="block text-xs uppercase tracking-wider text-white/50">
         {field.label}
         {field.required && <span className="text-red-300"> *</span>}
       </span>
-      <input
-        type={field.kind === "number" ? "number" : "text"}
-        value={value}
-        placeholder={field.placeholder ?? ""}
-        onChange={(e) => onChange(e.target.value)}
-        className="mt-1.5 w-full rounded border border-white/10 bg-black/30 px-3 py-2 text-sm text-white outline-none focus:border-white/30"
-      />
+      {field.kind === "select" ? (
+        <select value={value} onChange={(e) => onChange(e.target.value)} className={baseClass}>
+          {!field.required && <option value="">—</option>}
+          {(field.options ?? []).map((o) => (
+            <option key={o.value} value={o.value}>
+              {o.label}
+            </option>
+          ))}
+        </select>
+      ) : (
+        <input
+          type={field.kind === "number" ? "number" : "text"}
+          value={value}
+          placeholder={field.placeholder ?? ""}
+          onChange={(e) => onChange(e.target.value)}
+          className={baseClass}
+        />
+      )}
       {field.help && <p className="mt-1 text-xs text-white/40">{field.help}</p>}
     </label>
   );

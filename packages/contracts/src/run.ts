@@ -35,6 +35,7 @@ export type ArtifactEvent = z.infer<typeof ArtifactEventSchema>;
 
 export const RunSchema = z.object({
   id: z.string(),
+  caseId: z.string().nullable(),
   toolId: z.string(),
   status: RunStatusSchema,
   startedAt: z.string(),
@@ -42,3 +43,12 @@ export const RunSchema = z.object({
   input: z.record(z.string(), z.unknown()),
 });
 export type Run = z.infer<typeof RunSchema>;
+
+export const PersistedArtifactSchema = z.object({
+  id: z.string(),
+  caseId: z.string().nullable(),
+  runId: z.string(),
+  artifact: ArtifactSchema,
+  createdAt: z.string(),
+});
+export type PersistedArtifact = z.infer<typeof PersistedArtifactSchema>;

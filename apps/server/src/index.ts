@@ -1,7 +1,12 @@
 import { cors } from "@elysiajs/cors";
 import { Elysia } from "elysia";
 
+import { getDb } from "./db";
 import { rpcRoutes } from "./rpc/server";
+
+// Open + migrate the database at module load so the first RPC call doesn't pay
+// the migration cost and we surface schema errors during boot.
+getDb();
 
 function resolveCorsOrigin(): true | string[] {
   const raw = process.env.ILMS_CORS_ALLOWED_ORIGINS?.trim();
@@ -21,6 +26,10 @@ export function createApp() {
     )
     .get("/", () => ({ healthy: true, service: "ilms-server" }))
     .get("/health", () => ({ healthy: true, service: "ilms-server" }))
+    .post("/shutdown", () => {
+      setTimeout(() => process.exit(0), 10);
+      return { ok: true };
+    })
     .use(rpcRoutes);
 }
 

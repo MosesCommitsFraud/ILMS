@@ -1,7 +1,16 @@
 import { z } from "zod";
 
-import { CaseSchema } from "./case";
-import { ArtifactEventSchema } from "./run";
+import {
+  CaseCreateInputSchema,
+  CaseSchema,
+  CaseUpdateInputSchema,
+} from "./case";
+import {
+  ArtifactEventSchema,
+  PersistedArtifactSchema,
+  RunSchema,
+} from "./run";
+import { TargetCreateInputSchema, TargetSchema } from "./target";
 import { ToolDescriptorSchema, ToolRunInputSchema, ToolRunStartedSchema } from "./tool";
 
 export type RpcMethodDefinition = {
@@ -11,10 +20,48 @@ export type RpcMethodDefinition = {
 
 export type RpcMethodMap = Record<string, RpcMethodDefinition>;
 
+const OkSchema = z.object({ ok: z.boolean() });
+
 export const rpcMethods = {
   "case.list": {
     input: z.object({}),
     output: z.array(CaseSchema),
+  },
+  "case.get": {
+    input: z.object({ id: z.string() }),
+    output: CaseSchema,
+  },
+  "case.create": {
+    input: CaseCreateInputSchema,
+    output: CaseSchema,
+  },
+  "case.update": {
+    input: CaseUpdateInputSchema,
+    output: CaseSchema,
+  },
+  "case.delete": {
+    input: z.object({ id: z.string() }),
+    output: OkSchema,
+  },
+  "target.list": {
+    input: z.object({ caseId: z.string() }),
+    output: z.array(TargetSchema),
+  },
+  "target.create": {
+    input: TargetCreateInputSchema,
+    output: TargetSchema,
+  },
+  "target.delete": {
+    input: z.object({ id: z.string() }),
+    output: OkSchema,
+  },
+  "run.list": {
+    input: z.object({ caseId: z.string() }),
+    output: z.array(RunSchema),
+  },
+  "artifact.list": {
+    input: z.object({ caseId: z.string().optional(), runId: z.string().optional() }),
+    output: z.array(PersistedArtifactSchema),
   },
   "tool.list": {
     input: z.object({}),
@@ -53,10 +100,6 @@ export const RpcResponseSchema = z.object({
 });
 export type RpcResponse = z.infer<typeof RpcResponseSchema>;
 
-/**
- * Server-pushed events. Identified by `event` (channel kind) and `key`
- * (channel id, e.g. a runId). Payload shape depends on the event kind.
- */
 export const RpcEventSchema = z.object({
   event: z.string(),
   key: z.string(),

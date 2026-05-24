@@ -6,6 +6,7 @@ import { rpc } from "../rpc/client";
 
 interface ToolRouteProps {
   toolId: string;
+  caseId?: string | undefined;
   onBack: () => void;
   onRunStarted: (runId: string) => void;
 }
@@ -15,7 +16,7 @@ type LoadState =
   | { status: "ready"; tool: ToolDescriptor }
   | { status: "error"; message: string };
 
-export function ToolRoute({ toolId, onBack, onRunStarted }: ToolRouteProps) {
+export function ToolRoute({ toolId, caseId, onBack, onRunStarted }: ToolRouteProps) {
   const [state, setState] = useState<LoadState>({ status: "loading" });
   const [values, setValues] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -65,7 +66,11 @@ export function ToolRoute({ toolId, onBack, onRunStarted }: ToolRouteProps) {
     setSubmitError(null);
     try {
       const input = coerceInput(tool.inputFields, values);
-      const { runId } = await rpc.call("tool.run", { toolId: tool.id, input });
+      const { runId } = await rpc.call("tool.run", {
+        toolId: tool.id,
+        input,
+        ...(caseId ? { caseId } : {}),
+      });
       onRunStarted(runId);
     } catch (error) {
       setSubmitError(error instanceof Error ? error.message : String(error));
@@ -96,6 +101,11 @@ export function ToolRoute({ toolId, onBack, onRunStarted }: ToolRouteProps) {
           <header className="mb-8">
             <h1 className="text-2xl font-medium tracking-tight">{tool.label}</h1>
             <p className="mt-1 text-sm text-white/40">{tool.description}</p>
+            {caseId && (
+              <p className="mt-2 text-[11px] uppercase tracking-wider text-white/30">
+                bound to case · {caseId}
+              </p>
+            )}
           </header>
 
           <form onSubmit={onSubmit} className="space-y-5">

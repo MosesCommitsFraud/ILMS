@@ -6,8 +6,16 @@ import {
 } from "@ilms/contracts/rpc";
 import { ZodError } from "zod";
 
-import { listCases } from "../cases/store";
+import {
+  createCase,
+  deleteCase,
+  getCase,
+  listCases,
+  updateCase,
+} from "../cases/store";
 import { startRun } from "../runs/manager";
+import { listArtifacts, listRuns } from "../runs/store";
+import { createTarget, deleteTarget, listTargets } from "../targets/store";
 import { listTools } from "../tools/registry";
 
 type RpcHandlers = {
@@ -16,8 +24,25 @@ type RpcHandlers = {
 
 const handlers = {
   "case.list": () => listCases(),
+  "case.get": ({ id }) => getCase(id),
+  "case.create": (input) => createCase(input),
+  "case.update": (input) => updateCase(input),
+  "case.delete": ({ id }) => {
+    deleteCase(id);
+    return { ok: true };
+  },
+  "target.list": ({ caseId }) => listTargets(caseId),
+  "target.create": (input) => createTarget(input),
+  "target.delete": ({ id }) => {
+    deleteTarget(id);
+    return { ok: true };
+  },
+  "run.list": ({ caseId }) => listRuns(caseId),
+  "artifact.list": (query) => listArtifacts(query),
   "tool.list": () => listTools(),
-  "tool.run": ({ toolId, input }) => ({ runId: startRun(toolId, input) }),
+  "tool.run": ({ toolId, input, caseId }) => ({
+    runId: startRun({ toolId, input, caseId: caseId ?? null }),
+  }),
 } satisfies RpcHandlers;
 
 function executeParsedRpcHandler(method: RpcMethod, input: unknown) {

@@ -1,5 +1,6 @@
 import { useState } from "react";
 
+import { CaseRoute } from "./routes/Case";
 import { CasesRoute } from "./routes/Cases";
 import { RunRoute } from "./routes/Run";
 import { ToolRoute } from "./routes/Tool";
@@ -7,9 +8,10 @@ import { ToolsRoute } from "./routes/Tools";
 
 export type View =
   | { kind: "cases" }
+  | { kind: "case"; caseId: string }
   | { kind: "tools" }
-  | { kind: "tool"; toolId: string }
-  | { kind: "run"; runId: string; toolId: string };
+  | { kind: "tool"; toolId: string; caseId?: string | undefined }
+  | { kind: "run"; runId: string; toolId: string; caseId?: string | undefined };
 
 const NAV: Array<{ label: string; view: View; enabled?: boolean }> = [
   { label: "Cases", view: { kind: "cases" } },
@@ -20,7 +22,9 @@ const NAV: Array<{ label: string; view: View; enabled?: boolean }> = [
 ];
 
 export function App() {
-  const [view, setView] = useState<View>({ kind: "tools" });
+  const [view, setView] = useState<View>({ kind: "cases" });
+
+  const activeTop = view.kind === "case" ? "cases" : view.kind === "tool" || view.kind === "run" ? "tools" : view.kind;
 
   return (
     <div className="flex h-full">
@@ -31,7 +35,7 @@ export function App() {
             <NavItem
               key={item.label}
               label={item.label}
-              active={item.enabled !== false && item.view.kind === view.kind}
+              active={item.enabled !== false && item.view.kind === activeTop}
               disabled={item.enabled === false}
               onClick={() => item.enabled !== false && setView(item.view)}
             />
@@ -39,22 +43,43 @@ export function App() {
         </nav>
       </aside>
       <main className="flex-1 overflow-y-auto px-10 py-8">
-        {view.kind === "cases" && <CasesRoute />}
+        {view.kind === "cases" && (
+          <CasesRoute onOpen={(caseId) => setView({ kind: "case", caseId })} />
+        )}
+        {view.kind === "case" && (
+          <CaseRoute
+            caseId={view.caseId}
+            onBack={() => setView({ kind: "cases" })}
+            onRunTool={(toolId) => setView({ kind: "tool", toolId, caseId: view.caseId })}
+            onOpenRun={(runId, toolId) =>
+              setView({ kind: "run", runId, toolId, caseId: view.caseId })
+            }
+          />
+        )}
         {view.kind === "tools" && (
           <ToolsRoute onSelect={(toolId) => setView({ kind: "tool", toolId })} />
         )}
         {view.kind === "tool" && (
           <ToolRoute
             toolId={view.toolId}
-            onBack={() => setView({ kind: "tools" })}
-            onRunStarted={(runId) => setView({ kind: "run", runId, toolId: view.toolId })}
+            caseId={view.caseId}
+            onBack={() =>
+              view.caseId ? setView({ kind: "case", caseId: view.caseId }) : setView({ kind: "tools" })
+            }
+            onRunStarted={(runId) =>
+              setView({ kind: "run", runId, toolId: view.toolId, caseId: view.caseId })
+            }
           />
         )}
         {view.kind === "run" && (
           <RunRoute
             runId={view.runId}
             toolId={view.toolId}
-            onBack={() => setView({ kind: "tool", toolId: view.toolId })}
+            onBack={() =>
+              view.caseId
+                ? setView({ kind: "case", caseId: view.caseId })
+                : setView({ kind: "tool", toolId: view.toolId })
+            }
           />
         )}
       </main>

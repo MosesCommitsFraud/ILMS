@@ -31,6 +31,7 @@ export type ToolDescriptor = z.infer<typeof ToolDescriptorSchema>;
 export const ToolRunInputSchema = z.object({
   toolId: z.string(),
   input: z.record(z.string(), z.unknown()),
+  caseId: z.string().nullable().optional(),
 });
 export type ToolRunInput = z.infer<typeof ToolRunInputSchema>;
 

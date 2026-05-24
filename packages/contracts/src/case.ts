@@ -9,3 +9,15 @@ export const CaseSchema = z.object({
   notes: z.string().default(""),
 });
 export type Case = z.infer<typeof CaseSchema>;
+
+export const CaseCreateInputSchema = z.object({
+  name: z.string().trim().min(1),
+});
+export type CaseCreateInput = z.infer<typeof CaseCreateInputSchema>;
+
+export const CaseUpdateInputSchema = z.object({
+  id: z.string(),
+  name: z.string().trim().min(1).optional(),
+  notes: z.string().optional(),
+});
+export type CaseUpdateInput = z.infer<typeof CaseUpdateInputSchema>;

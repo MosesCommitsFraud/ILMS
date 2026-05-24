@@ -9,6 +9,10 @@ apps/desktop/src-tauri/target
 apps/desktop/src-tauri/gen/schemas
 apps/desktop/src-tauri/sidecars
 
+# Local data (SQLite, runtime state)
+apps/server/data
+data/
+
 # IDE
 .vscode
 .idea

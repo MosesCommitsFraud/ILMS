@@ -7,7 +7,9 @@
     ".": { "types": "./src/index.ts", "import": "./src/index.ts" },
     "./case": { "types": "./src/case.ts", "import": "./src/case.ts" },
     "./desktop": { "types": "./src/desktop.ts", "import": "./src/desktop.ts" },
-    "./rpc": { "types": "./src/rpc.ts", "import": "./src/rpc.ts" }
+    "./rpc": { "types": "./src/rpc.ts", "import": "./src/rpc.ts" },
+    "./run": { "types": "./src/run.ts", "import": "./src/run.ts" },
+    "./tool": { "types": "./src/tool.ts", "import": "./src/tool.ts" }
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json --noEmit"

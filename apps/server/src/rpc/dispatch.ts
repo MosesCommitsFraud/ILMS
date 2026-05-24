@@ -7,6 +7,8 @@ import {
 import { ZodError } from "zod";
 
 import { listCases } from "../cases/store";
+import { startRun } from "../runs/manager";
+import { listTools } from "../tools/registry";
 
 type RpcHandlers = {
   [M in RpcMethod]: (input: RpcInput<M>) => Promise<unknown> | unknown;
@@ -14,6 +16,8 @@ type RpcHandlers = {
 
 const handlers = {
   "case.list": () => listCases(),
+  "tool.list": () => listTools(),
+  "tool.run": ({ toolId, input }) => ({ runId: startRun(toolId, input) }),
 } satisfies RpcHandlers;
 
 function executeParsedRpcHandler(method: RpcMethod, input: unknown) {

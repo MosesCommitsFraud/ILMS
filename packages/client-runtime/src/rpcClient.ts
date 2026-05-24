@@ -1,7 +1,9 @@
 import {
+  RpcEventSchema,
   RpcResponseSchema,
   rpcMethods,
   type RpcErrorPayload,
+  type RpcEvent,
   type RpcInput,
   type RpcMethod,
   type RpcOutput,
@@ -27,6 +29,8 @@ export class RpcError extends Error {
   }
 }
 
+export type RpcEventHandler = (event: RpcEvent) => void;
+
 export class RpcClient {
   private nextId = 0;
   private readonly timeoutMs: number;
@@ -39,6 +43,7 @@ export class RpcClient {
       timer: ReturnType<typeof setTimeout>;
     }
   >();
+  private readonly eventListeners = new Map<string, Set<RpcEventHandler>>();
 
   constructor(options: RpcClientOptions) {
     this.timeoutMs = options.timeoutMs ?? 30_000;
@@ -69,11 +74,34 @@ export class RpcClient {
     return definition.output.parse(result) as RpcOutput<M>;
   }
 
+  /**
+   * Subscribe to server-pushed events for a given channel (e.g. "run.event").
+   * Returns an unsubscribe function.
+   */
+  onEvent(event: string, handler: RpcEventHandler): () => void {
+    let bucket = this.eventListeners.get(event);
+    if (!bucket) {
+      bucket = new Set();
+      this.eventListeners.set(event, bucket);
+    }
+    bucket.add(handler);
+    return () => {
+      bucket?.delete(handler);
+    };
+  }
+
   close(): void {
     this.transport.close();
   }
 
   private handleMessage(message: unknown): void {
+    const eventParse = RpcEventSchema.safeParse(message);
+    if (eventParse.success) {
+      const bucket = this.eventListeners.get(eventParse.data.event);
+      if (bucket) for (const handler of bucket) handler(eventParse.data);
+      return;
+    }
+
     const parsed = RpcResponseSchema.safeParse(message);
     if (!parsed.success) return;
     const entry = this.pending.get(parsed.data.id);

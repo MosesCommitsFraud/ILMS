@@ -1,0 +1,34 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "ILMS",
+  "version": "0.0.1",
+  "identifier": "com.ilms.desktop",
+  "build": {
+    "frontendDist": "../../web/dist",
+    "devUrl": "http://localhost:5733",
+    "beforeDevCommand": "bun run --cwd ../web dev",
+    "beforeBuildCommand": "bun run --cwd ../web build"
+  },
+  "app": {
+    "windows": [
+      {
+        "title": "ILMS",
+        "label": "main",
+        "width": 1400,
+        "height": 900,
+        "minWidth": 900,
+        "minHeight": 600,
+        "decorations": true,
+        "backgroundColor": "#0b0b0c"
+      }
+    ],
+    "security": {
+      "csp": null
+    }
+  },
+  "bundle": {
+    "active": true,
+    "targets": "all",
+    "icon": ["icons/icon.png", "icons/icon.ico", "icons/icon.icns"]
+  }
+}

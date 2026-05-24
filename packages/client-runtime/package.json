@@ -1,0 +1,22 @@
+{
+  "name": "@ilms/client-runtime",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": { "types": "./src/index.ts", "import": "./src/index.ts" },
+    "./environment": { "types": "./src/environment.ts", "import": "./src/environment.ts" },
+    "./advertisedEndpoint": { "types": "./src/advertisedEndpoint.ts", "import": "./src/advertisedEndpoint.ts" },
+    "./rpcClient": { "types": "./src/rpcClient.ts", "import": "./src/rpcClient.ts" },
+    "./wsTransport": { "types": "./src/wsTransport.ts", "import": "./src/wsTransport.ts" }
+  },
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@ilms/contracts": "workspace:*"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3"
+  }
+}

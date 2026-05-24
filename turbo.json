@@ -1,0 +1,31 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "HOST",
+    "PORT",
+    "VITE_HTTP_URL",
+    "VITE_WS_URL",
+    "ILMS_BACKEND_BASE_URL",
+    "BUN_BIN"
+  ],
+  "globalPassThroughEnv": ["PATHEXT"],
+  "tasks": {
+    "build": {
+      "dependsOn": ["^build"],
+      "outputs": [
+        "dist/**",
+        "src-tauri/target/release/bundle/**",
+        "src-tauri/target/release/ilms-desktop"
+      ]
+    },
+    "typecheck": {
+      "dependsOn": ["^typecheck"],
+      "outputs": [],
+      "cache": false
+    },
+    "test": {
+      "outputs": [],
+      "cache": false
+    }
+  }
+}

@@ -50,6 +50,28 @@ const MIGRATIONS: Array<{ version: number; sql: string }> = [
         WHERE case_id IS NOT NULL AND dedup_key IS NOT NULL;
     `,
   },
+  {
+    version: 2,
+    sql: `
+      CREATE TABLE agent_sessions (
+        id TEXT PRIMARY KEY,
+        case_id TEXT NOT NULL REFERENCES cases(id) ON DELETE CASCADE,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        UNIQUE(case_id)
+      );
+
+      CREATE TABLE agent_messages (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL REFERENCES agent_sessions(id) ON DELETE CASCADE,
+        sequence INTEGER NOT NULL,
+        content TEXT NOT NULL,
+        created_at TEXT NOT NULL,
+        UNIQUE(session_id, sequence)
+      );
+      CREATE INDEX agent_messages_session_idx ON agent_messages(session_id);
+    `,
+  },
 ];
 
 export function migrate(db: Database): void {

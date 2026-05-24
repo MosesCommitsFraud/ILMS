@@ -6,6 +6,10 @@ import {
 } from "@ilms/contracts/rpc";
 import { ZodError } from "zod";
 
+import { resolvePermission } from "../agent/permissionGate";
+import { sendUserMessage } from "../agent/runner";
+import { listMessages, openSession } from "../agent/store";
+import { listPending } from "../agent/permissionGate";
 import {
   createCase,
   deleteCase,
@@ -58,6 +62,17 @@ const handlers = {
   "report.markdown": ({ caseId }) => ({
     content: renderMarkdown(loadReportBundle(caseId)),
   }),
+  "agent.openSession": ({ caseId }) => openSession(caseId),
+  "agent.listMessages": ({ sessionId }) => listMessages(sessionId),
+  "agent.listPendingPermissions": ({ sessionId }) => listPending(sessionId),
+  "agent.sendMessage": async ({ sessionId, message }) => {
+    void sendUserMessage({ sessionId, message }).catch(() => undefined);
+    return { ok: true };
+  },
+  "agent.respondToPermission": ({ permissionId, approved }) => {
+    const ok = resolvePermission(permissionId, approved);
+    return { ok };
+  },
 } satisfies RpcHandlers;
 
 function executeParsedRpcHandler(method: RpcMethod, input: unknown) {

@@ -17,6 +17,7 @@ interface CaseRouteProps {
   onBack: () => void;
   onRunTool: (toolId: string) => void;
   onOpenRun: (runId: string, toolId: string) => void;
+  onOpenAgent: () => void;
 }
 
 interface BundleState {
@@ -31,7 +32,7 @@ interface BundleState {
 
 const TARGET_KINDS: TargetKind[] = ["email", "handle", "phone", "url", "name"];
 
-export function CaseRoute({ caseId, onBack, onRunTool, onOpenRun }: CaseRouteProps) {
+export function CaseRoute({ caseId, onBack, onRunTool, onOpenRun, onOpenAgent }: CaseRouteProps) {
   const [state, setState] = useState<BundleState>({
     status: "loading",
     targets: [],
@@ -101,6 +102,17 @@ export function CaseRoute({ caseId, onBack, onRunTool, onOpenRun }: CaseRoutePro
         targets={state.targets}
         onChanged={() => void refresh()}
       />
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wider text-white/40">Agent</h2>
+        <button
+          type="button"
+          onClick={onOpenAgent}
+          className="rounded border border-white/20 bg-white/5 px-4 py-2 text-sm text-white hover:bg-white/10"
+        >
+          Open Agent
+        </button>
+      </section>
 
       <ToolsSection tools={state.tools} onRun={onRunTool} />
 

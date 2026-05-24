@@ -85,6 +85,16 @@ Set `ILMS_DATA_DIR` to relocate the lot.
 
 - **PDF export hangs on Bun + Windows + headless chromium.** Reproduces in a standalone playwright-core script, so it's a runtime-compat issue, not in our code. Use the `Print` button instead — it opens `/reports/:id/html` in a new tab and you can save as PDF from the browser. The `/reports/:id/pdf` route still works on Linux / macOS and on Node-runtime deployments.
 
+## Agent
+
+Each case has an embedded agent that can drive any of the 10 tools on your behalf. Implementation:
+
+- `@anthropic-ai/sdk` with a custom tool-use loop. We own the loop, intercept every `tool_use` block, and route it through a permission gate before the tool actually runs.
+- Each ToolDescriptor is converted to an Anthropic tool spec (JSON Schema from `inputFields`). The agent's tool calls go through the existing `runs/manager`, so artifacts persist to the case just like manual runs.
+- Approve / deny each proposed tool call from the chat UI. `runs/manager` then executes the driver, the agent gets a summary back, and the loop continues until the model says `end_turn`.
+
+Configure `agent.anthropic.api_key` (and optionally `agent.anthropic.model`, default `claude-sonnet-4-5`) under Settings.
+
 ## Status
 
-Branches 1–9 of the [PLAN](./PLAN.md) roadmap have shipped. The agent (branch 7) is deliberately not yet implemented — opencode is a coding assistant and exposing OSINT tools to it cleanly is a larger piece of work; the @anthropic-ai/sdk inline-loop alternative is the preferred path when it lands.
+All ten branches of the [PLAN](./PLAN.md) roadmap have shipped.

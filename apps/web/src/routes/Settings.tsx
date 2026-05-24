@@ -9,6 +9,19 @@ interface ToolGroup {
   requirements: ToolSecretRequirement[];
 }
 
+const AGENT_REQUIREMENTS: ToolSecretRequirement[] = [
+  {
+    key: "agent.anthropic.api_key",
+    label: "Anthropic API key",
+    help: "Required to send agent messages. Get one at https://console.anthropic.com/.",
+  },
+  {
+    key: "agent.anthropic.model",
+    label: "Model override (optional)",
+    help: "Anthropic model id. Defaults to claude-sonnet-4-5 when unset.",
+  },
+];
+
 export function SettingsRoute() {
   const [tools, setTools] = useState<ToolDescriptor[]>([]);
   const [entries, setEntries] = useState<SecretEntry[]>([]);
@@ -63,6 +76,20 @@ export function SettingsRoute() {
           {error}
         </div>
       )}
+
+      <section>
+        <h2 className="mb-3 text-xs uppercase tracking-wider text-white/40">Agent</h2>
+        <div className="space-y-4">
+          {AGENT_REQUIREMENTS.map((req) => (
+            <SecretRow
+              key={req.key}
+              requirement={req}
+              entry={entryByKey.get(req.key) ?? null}
+              onChanged={() => void refresh()}
+            />
+          ))}
+        </div>
+      </section>
 
       {groups.length === 0 ? (
         <div className="rounded border border-dashed border-white/10 px-6 py-10 text-center text-sm text-white/30">

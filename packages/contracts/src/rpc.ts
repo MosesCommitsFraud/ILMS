@@ -1,6 +1,14 @@
 import { z } from "zod";
 
 import {
+  AgentEventSchema,
+  AgentMessageSchema,
+  AgentPermissionDecisionSchema,
+  AgentSendMessageInputSchema,
+  AgentSessionSchema,
+  PendingPermissionRequestSchema,
+} from "./agent";
+import {
   CaseCreateInputSchema,
   CaseSchema,
   CaseUpdateInputSchema,
@@ -46,6 +54,26 @@ export const rpcMethods = {
     input: z.object({ caseId: z.string() }),
     output: z.object({ content: z.string() }),
   },
+  "agent.openSession": {
+    input: z.object({ caseId: z.string() }),
+    output: AgentSessionSchema,
+  },
+  "agent.listMessages": {
+    input: z.object({ sessionId: z.string() }),
+    output: z.array(AgentMessageSchema),
+  },
+  "agent.listPendingPermissions": {
+    input: z.object({ sessionId: z.string() }),
+    output: z.array(PendingPermissionRequestSchema),
+  },
+  "agent.sendMessage": {
+    input: AgentSendMessageInputSchema,
+    output: OkSchema,
+  },
+  "agent.respondToPermission": {
+    input: AgentPermissionDecisionSchema,
+    output: OkSchema,
+  },
 } satisfies RpcMethodMap;
 
 export type RpcMethod = keyof typeof rpcMethods;
@@ -88,3 +116,10 @@ export const RunEventSchema = z.object({
   payload: ArtifactEventSchema,
 });
 export type RunEvent = z.infer<typeof RunEventSchema>;
+
+export const AgentRpcEventSchema = z.object({
+  event: z.literal("agent.event"),
+  key: z.string(),
+  payload: AgentEventSchema,
+});
+export type AgentRpcEvent = z.infer<typeof AgentRpcEventSchema>;

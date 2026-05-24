@@ -12,6 +12,7 @@
     "prepare:tools": "uv tool install sherlock-project && uv tool install toutatis && uv tool install crosslinked"
   },
   "dependencies": {
+    "@anthropic-ai/sdk": "^0.98.0",
     "@elysiajs/cors": "^1.4.0",
     "@ilms/contracts": "workspace:*",
     "@ilms/shared": "workspace:*",

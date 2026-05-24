@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     ".": { "types": "./src/index.ts", "import": "./src/index.ts" },
+    "./agent": { "types": "./src/agent.ts", "import": "./src/agent.ts" },
     "./case": { "types": "./src/case.ts", "import": "./src/case.ts" },
     "./desktop": { "types": "./src/desktop.ts", "import": "./src/desktop.ts" },
     "./rpc": { "types": "./src/rpc.ts", "import": "./src/rpc.ts" },

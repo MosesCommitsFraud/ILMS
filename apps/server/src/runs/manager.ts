@@ -1,9 +1,9 @@
 import type { ArtifactEvent } from "@ilms/contracts/run";
 
-import { broadcastEvent } from "../rpc/broadcast";
+import { broadcastEvent, onEventInternal } from "../rpc/broadcast";
 import { getToolDriver } from "../tools/registry";
 
-import { finishRun, insertArtifact, insertRun } from "./store";
+import { finishRun, insertArtifact, insertRun, listArtifacts } from "./store";
 
 interface RunState {
   id: string;
@@ -46,6 +46,43 @@ export function cancelRun(runId: string): boolean {
   if (!run) return false;
   run.controller.abort();
   return true;
+}
+
+/**
+ * Kick off a run and wait until it emits a `done` event over the broadcast
+ * bus, then summarize what happened for the caller. The agent runner uses
+ * this to surface tool results back to the model as tool_result blocks.
+ */
+export async function runToCompletion(args: {
+  toolId: string;
+  input: Record<string, unknown>;
+  caseId: string | null;
+}): Promise<{
+  runId: string;
+  ok: boolean;
+  artifactCount: number;
+  errorMessage: string | null;
+}> {
+  const runId = startRun(args);
+
+  let lastError: string | null = null;
+  const donePromise = new Promise<{ ok: boolean }>((resolve) => {
+    const unsubscribe = onEventInternal((event) => {
+      if (event.event !== "run.event" || event.key !== runId) return;
+      const payload = event.payload as { kind: string; message?: string };
+      if (payload.kind === "error" && payload.message) lastError = payload.message;
+      if (payload.kind === "done") {
+        unsubscribe();
+        resolve({ ok: lastError === null });
+      }
+    });
+  });
+
+  const { ok } = await donePromise;
+  const artifacts = args.caseId
+    ? listArtifacts({ caseId: args.caseId }).filter((a) => a.runId === runId)
+    : listArtifacts({ runId });
+  return { runId, ok, artifactCount: artifacts.length, errorMessage: lastError };
 }
 
 async function executeRun(
